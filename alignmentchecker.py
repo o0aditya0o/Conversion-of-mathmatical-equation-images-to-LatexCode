@@ -7,7 +7,13 @@ import features as fea
 import mapping as mp
 import numpy as np
 
+'''
+Heuristics:
 
+1. Operator can never be superscript or subscript
+2. operator can never have superscript or subscript
+
+'''
 def inside(a,b):
     if a[0] <= b[0] and a[0]+a[2] >= b[0]+b[2] and a[1] <= b[1] and a[1]+a[3] >= b[1]+b[3]:
         return 1
@@ -95,9 +101,14 @@ def align(img):
         y = clf1.predict(temp)
         y = mp.list[int(y[0])]
         operators = ['≤','≥','≠','÷','×','±' ,'∑','∫','=','+','-','/','*']
+        is_prev_operator = 0
         if idx1 == 0 or (y in operators):
             align.append(0)
             prev = 0
+            is_prev_operator = 1
+        elif is_prev_operator == 1:
+            align.append(0)
+            is_prev_operator = 0
         elif px2 < x1:
             if (py1 + py2)/2 > y2:
                 if prev == -1:
@@ -115,6 +126,7 @@ def align(img):
                     prev = -1
             else:
                 align.append(prev)
+            is_prev_operator = 0
         px1 = x1
         px2 = x2
         py1 = y1
