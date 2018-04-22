@@ -8,10 +8,24 @@ import pickle
 import mapping as mp
 import tolatex as tx
 import doit as dt
+import math
 import alignmentchecker as ali
 from scipy.signal import savgol_filter
 from scipy.signal import argrelextrema
 import numpy as np
+from keras.preprocessing import image
+import PIL
+
+def minimum(a,b):
+    if a < b:
+        return a
+    return b
+
+
+def maximum(a,b):
+    if a > b:
+        return a
+    return b
 
 
 def numhorsplit( img ):
@@ -104,11 +118,11 @@ def split(img):
     return clist
 
 
-def recurse(img):
+def recurse(img, model):
     img_not = abs(255 - img)
     # vertical histogram
     histo = img_not.sum(axis=0)
-
+    util.display_image(img, "Recurseeee")
     # smoothening histogram for better detection of words
     if (len(histo) < 7):
         # print("got it")
@@ -150,11 +164,6 @@ def recurse(img):
     flag =0
     # print("lol")
     # print(minn)
-    with open('MLPClassifier.pkl', 'rb') as f:
-        clf1 = pickle.load(f)
-
-    with open('scaler.pkl', 'rb') as f:
-        scaler = pickle.load(f)
 
     for i in minn:
         flag=0
@@ -162,7 +171,7 @@ def recurse(img):
             ch = img[:, previ:(i+1)]
             ch_not = abs(255 - ch)
             if (np.sum(ch_not) >= 6 * 255):
-                print("number of splits " + str(numhorsplit(ch)))
+                # print("number of splits " + str(numhorsplit(ch)))
                 # xlist = split(ch)
                 # for v in xlist:
                 #     util.display_image(v)
@@ -179,24 +188,32 @@ def recurse(img):
                     idx = 0
                     minus_pos = 0
                     char_operator = '-'
+                    len_of_bar = 0
+                    flag = 1
                     for v in xlist:
-                        x = fea.get_data(v)
-                        temp = []
-                        temp.append(x)
-                        temp = scaler.transform(temp)
-                        y = clf1.predict(temp)
-                        y = mp.list[int(y[0])]
-                        print(y)
-                        if y == '-' or y == '∑' or y == '∫':
-                            print("the index here is " + str(idx))
-                            util.display_image(v)
-                            minus_pos = idx
+                        y = util.predict_class(v, model)
+                        if y == '-' or y == '∑' or y == '∫' or y == 'E' or y == '/':
+                            # print("the index here is " + str(idx))
+                            # util.display_image(v)
+                            if y == '-':
+                                row = len(v)
+                                col = len(v[0])
+                                mn = col
+                                mx = 0
+                                for i in range(0,row):
+                                    for j in range(0, col):
+                                        if v[i,j] == 0:
+                                            mn = minimum(mn, j)
+                                            mx = maximum(mx, j)
+                                if mx - mn > len_of_bar:
+                                    len_of_bar = mx - mn
+                                    minus_pos = idx
                             char_operator = y
                         idx = idx + 1
                     num = xlist[0]
-                    print("minus " + str(minus_pos))
+                    # print("minus " + str(minus_pos))
                     den = xlist[minus_pos+1]
-                    util.display_image(den)
+                    # util.display_image(den)
                     idx = 0
                     for v in xlist:
                         if idx >= minus_pos:
@@ -212,37 +229,40 @@ def recurse(img):
                         if idx != minus_pos+1:
                             den = np.concatenate((den, v), axis = 0)
                         idx = idx + 1
-                    res = res + dt.give_me_the_equation(img[:, prev: previ])
+                    res = res + dt.give_me_the_equation(img[:, prev: previ], model)
                     prev = i + 1
                     util.display_image(num)
                     util.display_image(den)
                     if char_operator == '-':  # or clist[1] == fraction
                         res = res + "\\frac{"
-                        res = res + recurse(num) + "}{" + recurse(den) + "}"
-                    elif char_operator == '∫':
+                        res = res + recurse(num, model) + "}{" + recurse(den, model) + "}"
+                    elif char_operator == '∫' or char_operator == '/':
                         res = res + "\\int_{"
-                        res = res + recurse(num) + "}^{" + recurse(den) + "}"
+                        res = res + recurse(num, model) + "}^{" + recurse(den, model) + "}"
                     else:
                         res = res + "\\sum_{"
-                        res = res + recurse(num) + "}^{" + recurse(den) + "}"
-
+                        res = res + recurse(num, model) + "}^{" + recurse(den, model) + "}"
         previ = i
         if prev == -1:
             prev = i
+
+    print("flag " + str(flag))
     if flag == 0:
-        res = res + dt.give_me_the_equation(img[:, prev:previ + 1])
+        res = res + dt.give_me_the_equation(img[:, prev:previ + 1], model)
     return res
 
 # input the image
-path = os.getcwd() + '\\TestEquations\\' + 'eq18.jpg'
+path = os.getcwd() + '\\TestEquations\\' + 'eq35.jpg'
 # print(path)
 img = pre.input_image(path)
 util.display_image(img)
-# Converting light dark pixels ( <= 30 ) to black ( = 0 )
-img = pre.filter_image(img)
-# Thresholding OTSU
+# align = ali.align(img)
+print("Result from CNN")
+# print(recurse(img, "cnn"))
 
+img = pre.filter_image(img)
 img = pre.otsu_thresh(img)
-align = ali.align(img)
-print(recurse(img))
-# util.display_image(img)
+print("Result from ANN")
+print(recurse(img, "ann"))
+
+util.display_image(img)
