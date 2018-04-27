@@ -119,10 +119,11 @@ def split(img):
 
 
 def recurse(img, model):
+    # print('recurse calling')
     img_not = abs(255 - img)
     # vertical histogram
     histo = img_not.sum(axis=0)
-    util.display_image(img, "Recurseeee")
+    # util.display_image(img, "Recurseeee")
     # smoothening histogram for better detection of words
     if (len(histo) < 7):
         # print("got it")
@@ -186,13 +187,14 @@ def recurse(img, model):
                 if numhorsplit(ch) > 2:
                     xlist = split(ch)
                     idx = 0
-                    minus_pos = 0
+                    operator_pos = 0
                     char_operator = '-'
                     len_of_bar = 0
                     flag = 1
                     for v in xlist:
                         y = util.predict_class(v, model)
-                        if y == '-' or y == '∑' or y == '∫' or y == 'E' or y == '/':
+                        print('Charater Predicted ' + str(y))
+                        if y == '-' or y == '∑' or y == '∫' or y == 'E' or y == '/' or y == 'Z' or y == 'z':
                             # print("the index here is " + str(idx))
                             # util.display_image(v)
                             if y == '-':
@@ -200,64 +202,66 @@ def recurse(img, model):
                                 col = len(v[0])
                                 mn = col
                                 mx = 0
-                                for i in range(0,row):
+                                for ii in range(0,row):
                                     for j in range(0, col):
-                                        if v[i,j] == 0:
+                                        if v[ii,j] == 0:
                                             mn = minimum(mn, j)
                                             mx = maximum(mx, j)
                                 if mx - mn > len_of_bar:
                                     len_of_bar = mx - mn
-                                    minus_pos = idx
+                                    operator_pos = idx
+                            else:
+                                operator_pos = idx
                             char_operator = y
                         idx = idx + 1
                     num = xlist[0]
-                    # print("minus " + str(minus_pos))
-                    den = xlist[minus_pos+1]
+                    # print("minus " + str(operator_pos))
+                    den = xlist[operator_pos+1]
                     # util.display_image(den)
                     idx = 0
                     for v in xlist:
-                        if idx >= minus_pos:
+                        if idx >= operator_pos:
                             break
                         if idx != 0:
                             num = np.concatenate((num, v), axis = 0)
                         idx = idx + 1
                     idx = 0
                     for v in xlist:
-                        if idx <= minus_pos:
+                        if idx <= operator_pos:
                             idx = idx + 1
                             continue
-                        if idx != minus_pos+1:
+                        if idx != operator_pos+1:
                             den = np.concatenate((den, v), axis = 0)
                         idx = idx + 1
                     res = res + dt.give_me_the_equation(img[:, prev: previ], model)
                     prev = i + 1
-                    util.display_image(num)
-                    util.display_image(den)
+                    # util.display_image(num, 'numerator')
+                    # util.display_image(den, 'denominator')
                     if char_operator == '-':  # or clist[1] == fraction
                         res = res + "\\frac{"
+                        # print('recurse callingnum and denom')
                         res = res + recurse(num, model) + "}{" + recurse(den, model) + "}"
                     elif char_operator == '∫' or char_operator == '/':
                         res = res + "\\int_{"
-                        res = res + recurse(num, model) + "}^{" + recurse(den, model) + "}"
+                        res = res + recurse(den, model) + "}^{" + recurse(num, model) + "}"
                     else:
                         res = res + "\\sum_{"
-                        res = res + recurse(num, model) + "}^{" + recurse(den, model) + "}"
+                        res = res + recurse(den, model) + "}^{" + recurse(num, model) + "}"
         previ = i
         if prev == -1:
             prev = i
-
-    print("flag " + str(flag))
     if flag == 0:
         res = res + dt.give_me_the_equation(img[:, prev:previ + 1], model)
+    # print('Recurse exit')
     return res
 
 # input the image
-path = os.getcwd() + '\\TestEquations\\' + 'eq35.jpg'
+path = os.getcwd() + '\\TestEquations\\' + 'eq47.jpg'
 # print(path)
 img = pre.input_image(path)
 util.display_image(img)
 # align = ali.align(img)
-print("Result from CNN")
+# print("Result from CNN")
 # print(recurse(img, "cnn"))
 
 img = pre.filter_image(img)

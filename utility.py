@@ -24,6 +24,7 @@ def cnvt_bool_to_uint8(img):
     return ret
 
 def predict_class(img, model):
+    # display_image(img, " Prediction Module")
     # Load ANN
     with open('MLPClassifier.pkl', 'rb') as f:
         clf1 = pickle.load(f)
@@ -66,4 +67,7 @@ def predict_class(img, model):
         temp = scaler.transform(temp)
         y = clf1.predict(temp)
         y = mp.list[int(y[0])]
+        if y in mp.small:
+            y = y.lower()
+        # print(y + ' Got Predicted')
         return y
